@@ -24,4 +24,8 @@ rm("dfstorms")
 
 ## So we need some processing of our data
 ## first let's check how clean our data is
-evtype <- unique(storms$EVTYPE)
+
+## TODO:
+##      Normalize event types: trim and make case the same (upper case)
+##      Turn date strings in date (using lubridate)
+##      Extract what we need for this excersise, evttype, date, fatalities, injuries and research waht fields are related to economic impact
