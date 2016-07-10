@@ -29,3 +29,15 @@ rm("dfstorms")
 ##      Normalize event types: trim and make case the same (upper case)
 ##      Turn date strings in date (using lubridate)
 ##      Extract what we need for this excersise, evttype, date, fatalities, injuries and research waht fields are related to economic impact
+storms$EVTYPE <- toupper(trimws(storms$EVTYPE,which="both"))
+library(lubridate)
+storms$BGN_DATE <- mdy_hms(storms)
+storms$EVTYPE <- as.factor(storms$EVTYPE)
+##
+storms.casualties <- storms %>%
+                        select(BGN_DATE,EVTYPE,STATE,FATALITIES,INJURIES,PROPDMG,CROPDMG)
+casualties.by.evt <- aggregate(data=storms.casualties,FATALITIES+INJURIES ~ EVTYPE,sum)
+vname <- c("EVTYPE","HEALTHIMPACT")
+colnames(casualties.by.evt) <- vname
+casualties.by.evt <- casualties.by.evt[order(casualties.by.evt$HEALTHIMPACT,desc),]
+casualties.by.evt <- subset(casualties.by.evt,!(HEALTHIMPACT == 0))
