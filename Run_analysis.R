@@ -40,12 +40,31 @@ storms.impact <- storms %>%
 storms.health.summary <- storms.impact %>%
                                 group_by(EVTYPE,YEAR=year(BGN_DATE)) %>%
                                 summarise(POPIMPACT=sum(FATALITIES + INJURIES))
-        
-
-
-
-
-
+##Breaks data by decade        
+storms.health.summary <- mutate(
+                                storms.health.summary,
+                                DECADE=cut(YEAR,
+                                           breaks=seq(1949,2020,by=10),
+                                           labels=c("50s","60s","70s","80s","90s","00s","10s")
+                                           )
+                                )
+## Filter events that had 0 casualties
+storms.health.summary <- filter(storms.health.summary,
+                                POPIMPACT !=0
+                                )
+## looked at most impactful events by decade
+storms.health.summary.by.decade <- storms.health.summary %>%
+                         group_by(
+                                  DECADE,
+                                  EVTYPE) %>%
+                         summarise(
+                                 POPIMPACT2 = sum(POPIMPACT)
+                                 )
+## Plot it
+myp <- ggplot(storms.health.summary.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
+myp <- myp + geom_bar(stat="identity") 
+myp <- myp + guides(fill=FALSE)  
+print(myp)
 
 
 
