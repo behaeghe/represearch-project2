@@ -60,12 +60,34 @@ storms.health.summary.by.decade <- storms.health.summary %>%
                          summarise(
                                  POPIMPACT2 = sum(POPIMPACT)
                                  )
+## Overall
+storms.health.summary.overall <- storms.health.summary %>%
+                                group_by(EVTYPE) %>%
+                                summarise(
+                                        POPIMPACT2 = sum(POPIMPACT)
+                                ) %>%
+                                arrange(desc(POPIMPACT2)) %>%
+                                mutate(rank=cume_dist(POPIMPACT2))
+## find top 3 impact by decades
+top.impact.by.decade <- arrange(
+                                top_n(
+                                storms.health.summary.by.decade,3
+                                ),
+                                DECADE,
+                                desc(POPIMPACT2),
+                                EVTYPE)
+                                
+
 ## Plot it
-myp <- ggplot(storms.health.summary.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
+myp <- ggplot(top.impact.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
 myp <- myp + geom_bar(stat="identity") 
-myp <- myp + guides(fill=FALSE)  
+myp <- myp   
 print(myp)
 
+## So, what it looks like is TORNADO is historically the most impactful,and it seems
+## that tornado was the only event reported until the 80s
+## 
+## Looking at the full aggrgegate
 
 
 
