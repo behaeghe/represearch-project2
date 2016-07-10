@@ -34,10 +34,37 @@ library(lubridate)
 storms$BGN_DATE <- mdy_hms(storms)
 storms$EVTYPE <- as.factor(storms$EVTYPE)
 ##
-storms.casualties <- storms %>%
+storms.impact <- storms %>%
                         select(BGN_DATE,EVTYPE,STATE,FATALITIES,INJURIES,PROPDMG,CROPDMG)
-casualties.by.evt <- aggregate(data=storms.casualties,FATALITIES+INJURIES ~ EVTYPE,sum)
-vname <- c("EVTYPE","HEALTHIMPACT")
-colnames(casualties.by.evt) <- vname
-casualties.by.evt <- casualties.by.evt[order(casualties.by.evt$HEALTHIMPACT,desc),]
-casualties.by.evt <- subset(casualties.by.evt,!(HEALTHIMPACT == 0))
+
+storms.health.summary <- storms.impact %>%
+                                group_by(EVTYPE,YEAR=year(BGN_DATE)) %>%
+                                summarise(POPIMPACT=sum(FATALITIES + INJURIES))
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
