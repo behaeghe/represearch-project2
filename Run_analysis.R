@@ -11,13 +11,14 @@ if (!file.exists("./data/archive.zip"))
                 ##unzip("./data/archive.zip",exdir="./data")
         }
 ## read the data into R
-
+if(!"storms" %in% ls()){
 dfstorms <- read.csv("./data/archive.zip",stringsAsFactors = TRUE)
 ## Making the dataframe as table as they are easier to print and manipulate
 library(dplyr)
 storms <- tbl_df(dfstorms)
 ## removing the data fram object form memory (> 400MB)
-rm("dfstorms")
+#rm("dfstorms")
+}
 
 ##Across the United States, which types of events (as indicated in the 𝙴𝚅𝚃𝚈𝙿𝙴 variabl) are most harmful with respect to population health?
 ##Across the United States, which types of events have the greatest economic consequences?
@@ -31,15 +32,26 @@ rm("dfstorms")
 ##      Extract what we need for this excersise, evttype, date, fatalities, injuries and research waht fields are related to economic impact
 storms$EVTYPE <- toupper(trimws(storms$EVTYPE,which="both"))
 library(lubridate)
-storms$BGN_DATE <- mdy_hms(storms)
+storms$BGN_DATE <- mdy_hms(as.character(storms$BGN_DATE))
 storms$EVTYPE <- as.factor(storms$EVTYPE)
 ##
 storms.impact <- storms %>%
                         select(BGN_DATE,EVTYPE,STATE,FATALITIES,INJURIES,PROPDMG,CROPDMG)
 
 storms.health.summary <- storms.impact %>%
-                                group_by(EVTYPE,YEAR=year(BGN_DATE)) %>%
-                                summarise(POPIMPACT=sum(FATALITIES + INJURIES))
+                                group_by(
+                                        EVTYPE,
+                                        YEAR=year(BGN_DATE)) %>%
+                                summarise(
+                                        POPIMPACT=sum(FATALITIES + INJURIES)
+                                        )
+storms.cost.summary <- storms.impact %>%
+                                group_by(
+                                        EVTYPE,
+                                        YEAR=year(BGN_DATE)) %>%
+                                summarise(
+                                        COSTIMPACT=sum(CROPDMG + PROPDMG)
+                                )
 ##Breaks data by decade        
 storms.health.summary <- mutate(
                                 storms.health.summary,
@@ -48,11 +60,12 @@ storms.health.summary <- mutate(
                                            labels=c("50s","60s","70s","80s","90s","00s","10s")
                                            )
                                 )
-## Filter events that had 0 casualties
+## Looking at Population Health Impact
+##r events that had 0 casualties 
 storms.health.summary <- filter(storms.health.summary,
-                                POPIMPACT !=0
+                                POPIMPACT !=0 
                                 )
-## looked at most impactful events by decade
+## looked at most impactful events by decade on heatlh
 storms.health.summary.by.decade <- storms.health.summary %>%
                          group_by(
                                   DECADE,
@@ -60,42 +73,89 @@ storms.health.summary.by.decade <- storms.health.summary %>%
                          summarise(
                                  POPIMPACT2 = sum(POPIMPACT)
                                  )
-## Overall
+## find top 3 impact by decades
+top.impact.by.decade <- arrange(
+        top_n(
+                storms.health.summary.by.decade,3
+        ),
+        DECADE,
+        desc(POPIMPACT2),
+        EVTYPE)
+## Plot it
+library(ggplot2)
+myp <- ggplot(top.impact.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
+myp <- myp + geom_bar(stat="identity") 
+myp <- myp   
+print(myp)
+## Overall since 80s
 storms.health.summary.overall <- storms.health.summary %>%
+                                filter(
+                                        DECADE %in% c("80s","90s","00s","10s")
+                                        ) %>%
                                 group_by(EVTYPE) %>%
                                 summarise(
                                         POPIMPACT2 = sum(POPIMPACT)
                                 ) %>%
                                 arrange(desc(POPIMPACT2)) %>%
-                                mutate(rank=cume_dist(POPIMPACT2))
-## find top 3 impact by decades
-top.impact.by.decade <- arrange(
-                                top_n(
-                                storms.health.summary.by.decade,3
-                                ),
-                                DECADE,
-                                desc(POPIMPACT2),
-                                EVTYPE)
+                                mutate(RANK=cume_dist(POPIMPACT2)) %>%
+                                filter(RANK > 0.95)
+
                                 
 
 ## Plot it
-myp <- ggplot(top.impact.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
+myp <- ggplot(data=storms.health.summary.overall,aes())
+
+### Now looking at costs impact##
+### 
+##Breaks data by decade        
+storms.costs.summary <- mutate(
+        storms.impact,
+        DECADE=cut(year(BGN_DATE),
+                   breaks=seq(1949,2020,by=10),
+                   labels=c("50s","60s","70s","80s","90s","00s","10s")
+        ),
+        COSTIMPACT = PROPDMG+CROPDMG
+)
+## Filte# Looking at Population costs Impact
+##r events that had 0 casualties 
+storms.costs.summary <- filter(storms.costs.summary,
+                                COSTIMPACT !=0 
+                        )
+## looked at most impactful events by decade on heatlh
+storms.costs.summary.by.decade <- storms.costs.summary %>%
+        group_by(
+                DECADE,
+                EVTYPE) %>%
+        summarise(
+                COSTIMPACT2 = sum(COSTIMPACT)
+        )
+## Overall since 80s
+storms.costs.summary.overall <- storms.costs.summary %>%
+        filter(
+                DECADE %in% c("80s","90s","00s","10s")
+        ) %>%
+        group_by(EVTYPE) %>%
+        summarise(
+                COSTIMPACT2 = sum(COSTIMPACT)
+        ) %>%
+        arrange(desc(COSTIMPACT2)) %>%
+        mutate(RANK=cume_dist(COSTIMPACT2)) %>%
+        filter(RANK > 0.98)
+## find top 3 impact by decades
+top.costs.by.decade <- arrange(
+        top_n(
+                storms.costs.summary.by.decade,3
+        ),
+        DECADE,
+        desc(COSTIMPACT2),
+        EVTYPE)
+
+## Plot it
+library(ggplot2)
+myp <- ggplot(storms.costs.summary.overall,aes(EVTYPE,COSTIMPACT2) )
 myp <- myp + geom_bar(stat="identity") 
 myp <- myp   
 print(myp)
-
-## So, what it looks like is TORNADO is historically the most impactful,and it seems
-## that tornado was the only event reported until the 80s
-## 
-## Looking at the full aggrgegate
-
-
-
-
-
-
-
-
 
 
 
