@@ -11,14 +11,16 @@ if (!file.exists("./data/archive.zip"))
                 ##unzip("./data/archive.zip",exdir="./data")
         }
 ## read the data into R
+dfstorms <- read.csv("./data/archive.zip",stringsAsFactors = TRUE)
 if(!"storms" %in% ls()){
 dfstorms <- read.csv("./data/archive.zip",stringsAsFactors = TRUE)
 ## Making the dataframe as table as they are easier to print and manipulate
+}
 library(dplyr)
 storms <- tbl_df(dfstorms)
 ## removing the data fram object form memory (> 400MB)
 #rm("dfstorms")
-}
+
 
 ##Across the United States, which types of events (as indicated in the 𝙴𝚅𝚃𝚈𝙿𝙴 variabl) are most harmful with respect to population health?
 ##Across the United States, which types of events have the greatest economic consequences?
@@ -98,13 +100,14 @@ storms.health.summary.overall <- storms.health.summary %>%
                                 ) %>%
                                 arrange(desc(POPIMPACT2)) %>%
                                 mutate(RANK=cume_dist(POPIMPACT2)) %>%
-                                filter(RANK > 0.95)
+                                filter(RANK > 0.98)
 
                                 
 
 ## Plot it
-myp <- ggplot(data=storms.health.summary.overall,aes())
-
+myp <- ggplot(data=storms.health.summary.overall,aes(reorder(EVTYPE,-POPIMPACT2),POPIMPACT2,fill=EVTYPE))
+myp <- myp + geom_bar(stat="identity")
+print(myp)
 ### Now looking at costs impact##
 ### 
 ##Breaks data by decade        
@@ -138,9 +141,11 @@ storms.costs.summary.overall <- storms.costs.summary %>%
         summarise(
                 COSTIMPACT2 = sum(COSTIMPACT)
         ) %>%
-        arrange(desc(COSTIMPACT2)) %>%
-        mutate(RANK=cume_dist(COSTIMPACT2)) %>%
-        filter(RANK > 0.98)
+        arrange(
+                desc(COSTIMPACT2)
+                ) %>%
+        top_n(5)
+storms.costs.summary.overall <- arrange(storms.costs.summary.overall,desc(COSTIMPACT2))
 ## find top 3 impact by decades
 top.costs.by.decade <- arrange(
         top_n(
@@ -151,10 +156,10 @@ top.costs.by.decade <- arrange(
         EVTYPE)
 
 ## Plot it
+## Little hack to order the EVTYPE appropriately, ordering the factors
 library(ggplot2)
-myp <- ggplot(storms.costs.summary.overall,aes(EVTYPE,COSTIMPACT2) )
-myp <- myp + geom_bar(stat="identity") 
-myp <- myp   
+myp <- ggplot(storms.costs.summary.overall,aes(x=reorder(EVTYPE,-COSTIMPACT2),COSTIMPACT2) )
+myp <- myp + geom_bar(stat="identity", position = "stack") 
 print(myp)
 
 
