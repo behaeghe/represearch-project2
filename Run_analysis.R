@@ -117,7 +117,7 @@ myp <- myp + xlab("Weather Event Type") + ylab("Casualties/Injuries")
 
 ## fixing titles and legends
 print(myp)
-### Now looking at costs impact##
+### Now looking at health impact##
 ### 
 ##Breaks data by decade        
 storms.costs.summary <- mutate(
@@ -176,13 +176,10 @@ print(myp)
 
 ## Cleveland Dot Plot
 ## 
-cleveland.costs <- top_n(storms.costs.summary,20)
-cleveland.costs <- cleveland.costs %>%
-                        group_by(EVTYPE) %>%
-                        summarise(COSTIMPACT=sum(COSTIMPACT))
+cleveland.costs <- top_n(aggregate(data=storms.cost.summary, COSTIMPACT ~ EVTYPE,sum),5)
 
 myp2 <- ggplot(cleveland.costs,
-               aes(x=COSTIMPACT,
+               aes(x=COSTIMPACT/1e+6,
                    y=reorder(EVTYPE,COSTIMPACT)
                    )
         )
@@ -192,24 +189,17 @@ myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.minor.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                                                      ))
+myp2 <- myp2 + ggtitle("Cost Impact of Weather Event (Top 5 by costs)") 
+myp2 <- myp2 + xlab("Costs in Million USD")
+myp2 <- myp2 + theme(axis.title.y=element_blank())
 print(myp2)
 
-
-
-
-
-
-
 ##
 ##
-cleveland.costs <- top_n(storms.costs.summary,20)
-cleveland.costs <- cleveland.costs %>%
-        group_by(EVTYPE) %>%
-        summarise(COSTIMPACT=sum(COSTIMPACT))
-
+cleveland.costs <- top_n(aggregate(data=storms.health.summary, POPIMPACT ~ EVTYPE,sum),5)
 myp2 <- ggplot(cleveland.costs,
-               aes(x=COSTIMPACT,
-                   y=reorder(EVTYPE,COSTIMPACT)
+               aes(x=POPIMPACT,
+                   y=reorder(EVTYPE,POPIMPACT)
                )
 )
 myp2 <- myp2 + geom_point(size=3,col="grey30")
@@ -218,6 +208,17 @@ myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.minor.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                      ))
+myp2 <- myp2 + ggtitle("Population Health Impact of Weather Event (Top 5 by Impact)") 
+myp2 <- myp2 + xlab("Casualties and Injuries (log)")
+myp2 <- myp2 + theme(axis.title.y=element_blank())
+myp2 <- myp2 + scale_x_log10()
 print(myp2)
+print(myp2)
+
+
+
+
+
+
 
 
