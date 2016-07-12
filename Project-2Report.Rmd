@@ -10,8 +10,10 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 #Synopsis  
-As a local government or municipality it is important to udnerstand the impact weather events could have on our local economy and population. This analysis based on  the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database will identify a set of weather events that have the most impact on local economies and populations. The analysis will be performed in aggregate for the whole United States (the current analysis will not provide details by state or county) and cumulatively for the last 60 years. We will first look at events through the decade to see if climatic change would impact the event reported. We will aggregate the data through the reporting period and identify the the top 5 events in terms of impact to population and US economy. 
+As a local government or municipality it is important to udnerstand the impact weather events could have on our local economy and population. This analysis based on  the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database will identify a set of weather events that have the most impact on local economies and populations. The analysis will be performed in aggregate for the whole United States (the current analysis will not provide details by state or county) and cumulatively for the last 60 years. We will first look at events through the decade to see if climatic change would impact the event reported. We will aggregate the data through the reporting period and identify the the top 5 events in terms of impact to population and US economy.  
+
 #Data Processing  
+##Acquiring the data  
 We will first downlad the NOAA database from [Storm Data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) [47Mb]. The file was downloaded on ```r Sys.Date()```. We will directly read the csv file from the zipped file in to a  R data frame. We use the dplyr package to facilitate further data processing.  
 ```{r aquiring data, cache=TRUE,include=TRUE}
 if (!file.exists("./data/archive.zip"))
@@ -30,4 +32,146 @@ library(dplyr)
 storms <- tbl_df(dfstorms)
 str(storms)
 ```
+##Cleaning the data  
+The next steps of the data processing is to clean some of the data ahead of the analysis.
+We've noticed some inconsitencies in the case used for recording events and some extra 
+white spaces. We are converting to all uper case and trimming any white spaces. Another inconsistency in the data was the use of the "TSTM WIND" event type early in the data set, that was later recorded as "THUNDERSTORM WIND". We've replaced all TSTM WIND entries by THUNDERSTOM WIND to ensure consistency in the analysis across the dataset. Finally, we converted the BGN_DATE variable into a POSIXct date object to support analysis based on date. 
 
+```{r data cleaning, cache=TRUE, include=TRUE}
+##Cleaning up the EVTYPE, through exploration of the data noticed some inconsitencies so 
+##addressing those here
+storms$EVTYPE <- toupper(trimws(storms$EVTYPE,which="both"))
+## Inconsistencies of reporting Thunderstorm wind as TSTM WInd and Thunderstorm Wind
+## this line addresses the issue and makes it conistent as "THUNDERSTORM WIND"
+storms$EVTYPE <- gsub("TSTM WIND","THUNDERSTORM WIND",storms$EVTYPE)
+## Transroming srting dates in date objects using lubridate
+library(lubridate)
+storms$BGN_DATE <- mdy_hms(as.character(storms$BGN_DATE))
+
+```
+
+##Data Analysis
+###Selecting data of interest  
+We will first subset the large storms data set to a smaller data set containing:
+        *Event start date (BGN_DATE)
+        *Event type (EVTYPE)
+        *Fatalities reported (FATALITIES)
+        *Injuries reported (INJURIES)
+        *Property damaage in USD (PROPDMG)
+        *Crop damage in USD (CROPDMG)  
+```{r data analysis, include=TRUE}
+library(dplyr,quietly=TRUE)
+library(lubridate,quietly = TRUE)
+storms.impact <- storms %>%
+                        select(BGN_DATE,EVTYPE,STATE,FATALITIES,INJURIES,PROPDMG,CROPDMG)
+```
+###Data Processing of weather events impact on population health
+We will first summarize the data (stroms.health.summary) by the total of fatalities and injuries per year, defining population heatlh impact as the sum of FATALITIES and INJURIES, creating the variable POPIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any injuries or casualties are excluded from the analysis dataset (storms.health.summary). We create a derived dataset (storms.health.summary.by.decade) that summarizes POPIMACT (sum of casualties and injuries) by decade and weather event type. We then select the top 3 event by decade in a derived dataset named top.impact.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.health.summary.overall.  
+```{r population impact, include=TRUE}
+## storms.health.summary aggregate the sum of fatalities and injuries by year and event type
+storms.health.summary <- storms.impact %>%
+                                group_by(
+                                        EVTYPE,
+                                        YEAR=year(BGN_DATE)) %>%
+                                summarise(
+                                        POPIMPACT=sum(FATALITIES + INJURIES)
+                                        )
+##The summary data is broken down by decade for results discussion       
+storms.health.summary <- mutate(
+                                storms.health.summary,
+                                DECADE=cut(YEAR,
+                                           breaks=seq(1949,2020,by=10),
+                                           labels=c("50s","60s","70s","80s","90s","00s","10s")
+                                           )
+                                )
+## Only events that had casualties are being considered
+storms.health.summary <- filter(storms.health.summary,
+                                POPIMPACT !=0 
+                                )
+## Aggregate population health data by decade for future plotting
+storms.health.summary.by.decade <- storms.health.summary %>%
+                         group_by(
+                                  DECADE,
+                                  EVTYPE) %>%
+                         summarise(
+                                 POPIMPACT2 = sum(POPIMPACT)
+                                 )
+## Define the top 3 impact by decades for plotting
+top.impact.by.decade <- arrange(
+        top_n(
+                storms.health.summary.by.decade,3
+        ),
+        DECADE,
+        desc(POPIMPACT2),
+        EVTYPE)
+## Aggregate Population Heatlh Impact since 1950 and select the 98% percentile and above
+storms.health.summary.overall <- storms.health.summary %>%
+                                filter(
+                                        DECADE %in% c("50s","60s","70s","80s","90s","00s","10s")
+                                        ) %>%
+                                group_by(EVTYPE) %>%
+                                summarise(
+                                        POPIMPACT2 = sum(POPIMPACT)
+                                ) %>%
+                                arrange(desc(POPIMPACT2)) %>%
+                                mutate(RANK=cume_dist(POPIMPACT2)) %>%
+                                filter(RANK > 0.98)
+
+```
+###Data processing of the economic impact of weather events across the United States
+We will first summarize the data (stroms.costs.summary) by the total of cost per year, defining population costs impact as the sum of CROPDMG and PROPDMG, creating the variable COSTIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any costs are excluded from the analysis dataset (storms.costs.summary). We create a derived dataset (storms.costs.summary.by.decade) that summarizes COSTIMPACT (sum of property and crop damages) by decade and weather event type. We then select the top 3 events by decade in a derived dataset named top.costs.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.health.summary.overall.  
+```{r costs impact, include=TRUE}
+storms.cost.summary <- storms.impact %>%
+                                group_by(
+                                        EVTYPE,
+                                        YEAR=year(BGN_DATE)) %>%
+                                summarise(
+                                        COSTIMPACT=sum(CROPDMG + PROPDMG)
+                                )
+##Breaks data by decade        
+storms.costs.summary <- mutate(
+        storms.impact,
+        DECADE=cut(year(BGN_DATE),
+                   breaks=seq(1949,2020,by=10),
+                   labels=c("50s","60s","70s","80s","90s","00s","10s")
+        ),
+        COSTIMPACT = PROPDMG+CROPDMG
+)
+## Filte# Looking at Population costs Impact
+##r events that had 0 casualties 
+storms.costs.summary <- filter(storms.costs.summary,
+                                COSTIMPACT !=0 
+                        )
+## looked at most impactful events by decade on heatlh
+storms.costs.summary.by.decade <- storms.costs.summary %>%
+        group_by(
+                DECADE,
+                EVTYPE) %>%
+        summarise(
+                COSTIMPACT2 = sum(COSTIMPACT)
+        )
+## Overall since 80s
+storms.costs.summary.overall <- storms.costs.summary %>%
+        filter(
+                DECADE %in% c("70s","80s","90s","00s","10s")
+        ) %>%
+        group_by(EVTYPE) %>%
+        summarise(
+                COSTIMPACT2 = sum(COSTIMPACT)
+        ) %>%
+        arrange(
+                desc(COSTIMPACT2)
+                ) %>%
+        mutate(RANK=cume_dist(COSTIMPACT2)) %>%
+        filter(RANK > 0.98)
+storms.costs.summary.overall <- arrange(storms.costs.summary.overall,desc(COSTIMPACT2))
+## find top 3 impact by decades
+top.costs.by.decade <- arrange(
+        top_n(
+                storms.costs.summary.by.decade,3
+        ),
+        DECADE,
+        desc(COSTIMPACT2),
+        EVTYPE)
+
+```
