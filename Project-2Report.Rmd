@@ -1,0 +1,33 @@
+---
+title: Analysis of Weather Events Impact on the United States Population Health and
+  Economy
+author: "JRB"
+date: "July 12, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Synopsis  
+As a local government or municipality it is important to udnerstand the impact weather events could have on our local economy and population. This analysis based on  the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database will identify a set of weather events that have the most impact on local economies and populations. The analysis will be performed in aggregate for the whole United States (the current analysis will not provide details by state or county) and cumulatively for the last 60 years. We will first look at events through the decade to see if climatic change would impact the event reported. We will aggregate the data through the reporting period and identify the the top 5 events in terms of impact to population and US economy. 
+#Data Processing  
+We will first downlad the NOAA database from [Storm Data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) [47Mb]. The file was downloaded on ```r Sys.Date()```. We will directly read the csv file from the zipped file in to a  R data frame. We use the dplyr package to facilitate further data processing.  
+```{r aquiring data, cache=TRUE,include=TRUE}
+if (!file.exists("./data/archive.zip"))
+        {
+                file.url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+                file.destination <- "data"
+                file.name <- "storms.csv"
+                date.downloaded <- Sys.Date()
+                download.file(file.url,"./data/archive.zip","curl",quiet=TRUE)
+        }
+## read the data into R
+dfstorms <- read.csv("./data/archive.zip",stringsAsFactors = TRUE)
+
+## Making the dataframe as table as they are easier to print and manipulate
+library(dplyr)
+storms <- tbl_df(dfstorms)
+str(storms)
+```
+
