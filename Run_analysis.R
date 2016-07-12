@@ -144,7 +144,7 @@ storms.costs.summary.by.decade <- storms.costs.summary %>%
 ## Overall since 80s
 storms.costs.summary.overall <- storms.costs.summary %>%
         filter(
-                DECADE %in% c("80s","90s","00s","10s")
+                DECADE %in% c("70s","80s","90s","00s","10s")
         ) %>%
         group_by(EVTYPE) %>%
         summarise(
@@ -174,6 +174,25 @@ myp <- myp + xlab("Weather Event Type") + ylab("Crop and Property Damages in Mil
 print(myp)
 
 
+## Cleveland Dot Plot
+## 
+cleveland.costs <- top_n(storms.costs.summary,20)
+cleveland.costs <- cleveland.costs %>%
+                        group_by(EVTYPE) %>%
+                        summarise(COSTIMPACT=sum(COSTIMPACT))
+
+myp2 <- ggplot(cleveland.costs,
+               aes(x=COSTIMPACT,
+                   y=reorder(EVTYPE,COSTIMPACT)
+                   )
+        )
+myp2 <- myp2 + geom_point(size=3,col="grey30")
+myp2 <- myp2 + theme_bw()
+myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
+                     panel.grid.minor.x = element_blank(),
+                     panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
+                                                     ))
+print(myp2)
 
 
 
@@ -181,7 +200,24 @@ print(myp)
 
 
 
+##
+##
+cleveland.costs <- top_n(storms.costs.summary,20)
+cleveland.costs <- cleveland.costs %>%
+        group_by(EVTYPE) %>%
+        summarise(COSTIMPACT=sum(COSTIMPACT))
 
-
+myp2 <- ggplot(cleveland.costs,
+               aes(x=COSTIMPACT,
+                   y=reorder(EVTYPE,COSTIMPACT)
+               )
+)
+myp2 <- myp2 + geom_point(size=3,col="grey30")
+myp2 <- myp2 + theme_bw()
+myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
+                     panel.grid.minor.x = element_blank(),
+                     panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
+                     ))
+print(myp2)
 
 
