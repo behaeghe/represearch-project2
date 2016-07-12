@@ -105,8 +105,17 @@ storms.health.summary.overall <- storms.health.summary %>%
                                 
 
 ## Plot it
-myp <- ggplot(data=storms.health.summary.overall,aes(reorder(EVTYPE,-POPIMPACT2),POPIMPACT2,fill=EVTYPE))
-myp <- myp + geom_bar(stat="identity")
+myp <- ggplot(data=storms.health.summary.overall,
+                aes(
+                        reorder(EVTYPE,-POPIMPACT2),
+                        POPIMPACT2
+                        )
+                )
+myp <- myp + geom_bar(stat="identity",fill="lightblue",width=0.2) + guides(fill=FALSE)
+myp <- myp + ggtitle("Top 5 Weather Event as Population Health Impact")
+myp <- myp + xlab("Weather Event Type") + ylab("Casualties/Injuries")
+
+## fixing titles and legends
 print(myp)
 ### Now looking at costs impact##
 ### 
@@ -158,8 +167,10 @@ top.costs.by.decade <- arrange(
 ## Plot it
 ## Little hack to order the EVTYPE appropriately, ordering the factors
 library(ggplot2)
-myp <- ggplot(storms.costs.summary.overall,aes(x=reorder(EVTYPE,-COSTIMPACT2),COSTIMPACT2) )
-myp <- myp + geom_bar(stat="identity", position = "stack") 
+myp <- ggplot(storms.costs.summary.overall,aes(x=reorder(EVTYPE,-COSTIMPACT2),COSTIMPACT2/1e+6) )
+myp <- myp + geom_bar(stat="identity",fill="lightblue",width=0.2) + guides(fill=FALSE)
+myp <- myp + ggtitle("Top 5 Weather Event as Economic Impact")
+myp <- myp + xlab("Weather Event Type") + ylab("Crop and Property Damages in Million USD")
 print(myp)
 
 
