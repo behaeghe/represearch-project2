@@ -32,10 +32,18 @@ storms <- tbl_df(dfstorms)
 ##      Normalize event types: trim and make case the same (upper case)
 ##      Turn date strings in date (using lubridate)
 ##      Extract what we need for this excersise, evttype, date, fatalities, injuries and research waht fields are related to economic impact
+##      Data Processing
+##      Cleaning up the EVTYPE, through exploration of the data noticed some inconsitencies so 
+##      addressing those here
 storms$EVTYPE <- toupper(trimws(storms$EVTYPE,which="both"))
+## Inconsistencies of reporting Thunderstorm wind as TSTM WInd and Thunderstorm Wind
+## this line addresses the issue and makes it conistent as "THUNDERSTORM WIND"
+storms$EVTYPE <- gsub("TSTM WIND","THUNDERSTORM WIND",storms$EVTYPE)
+## Transroming srting dates in date objects using lubridate
 library(lubridate)
 storms$BGN_DATE <- mdy_hms(as.character(storms$BGN_DATE))
-storms$EVTYPE <- as.factor(storms$EVTYPE)
+## Making event type a factor
+#storms$EVTYPE <- as.factor(storms$EVTYPE)
 ##
 storms.impact <- storms %>%
                         select(BGN_DATE,EVTYPE,STATE,FATALITIES,INJURIES,PROPDMG,CROPDMG)
@@ -86,13 +94,17 @@ top.impact.by.decade <- arrange(
 ## Plot it
 library(ggplot2)
 myp <- ggplot(top.impact.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
-myp <- myp + geom_bar(stat="identity") 
-myp <- myp   
+myp <- myp + geom_bar(stat="identity",width=0.5) 
+myp <- myp  
+myp <- myp + labs(title="Impact of Weather Event on Population Health by Decades (Top 3 by decade)",y="Casualties/Injuries",x="Decade")
+myp <- myp + scale_fill_brewer(palette="Spectral", name="Weather Event")
+myp <- myp + theme_bw() 
+
 print(myp)
 ## Overall since 80s
 storms.health.summary.overall <- storms.health.summary %>%
                                 filter(
-                                        DECADE %in% c("80s","90s","00s","10s")
+                                        DECADE %in% c("50s","60s","70s","80s","90s","00s","10s")
                                         ) %>%
                                 group_by(EVTYPE) %>%
                                 summarise(
@@ -117,7 +129,7 @@ myp <- myp + xlab("Weather Event Type") + ylab("Casualties/Injuries")
 
 ## fixing titles and legends
 print(myp)
-### Now looking at health impact##
+### Now looking at costs impact##
 ### 
 ##Breaks data by decade        
 storms.costs.summary <- mutate(
@@ -176,27 +188,28 @@ print(myp)
 
 ## Cleveland Dot Plot
 ## 
-cleveland.costs <- top_n(aggregate(data=storms.cost.summary, COSTIMPACT ~ EVTYPE,sum),5)
 
-myp2 <- ggplot(cleveland.costs,
+cleveland.costs <- top_n(aggregate(data=storms.cost.summary, COSTIMPACT ~ EVTYPE,sum),10)
+
+myp1 <- ggplot(cleveland.costs,
                aes(x=COSTIMPACT/1e+6,
                    y=reorder(EVTYPE,COSTIMPACT)
                    )
         )
-myp2 <- myp2 + geom_point(size=3,col="grey30")
-myp2 <- myp2 + theme_bw()
-myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
+myp1 <- myp1 + geom_point(size=3,col="grey30")
+myp1 <- myp1 + theme_bw()
+myp1 <- myp1 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.minor.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                                                      ))
-myp2 <- myp2 + ggtitle("Cost Impact of Weather Event (Top 5 by costs)") 
-myp2 <- myp2 + xlab("Costs in Million USD")
-myp2 <- myp2 + theme(axis.title.y=element_blank())
-print(myp2)
+myp1 <- myp1 + ggtitle("Cost Impact of Weather Event (Top 5 by costs)") 
+myp1 <- myp1 + xlab("Costs in Million USD")
+myp1 <- myp1 + theme(axis.title.y=element_blank())
+
 
 ##
 ##
-cleveland.costs <- top_n(aggregate(data=storms.health.summary, POPIMPACT ~ EVTYPE,sum),5)
+cleveland.costs <- top_n(aggregate(data=storms.health.summary, POPIMPACT ~ EVTYPE,sum),10)
 myp2 <- ggplot(cleveland.costs,
                aes(x=POPIMPACT,
                    y=reorder(EVTYPE,POPIMPACT)
@@ -212,9 +225,8 @@ myp2 <- myp2 + ggtitle("Population Health Impact of Weather Event (Top 5 by Impa
 myp2 <- myp2 + xlab("Casualties and Injuries (log)")
 myp2 <- myp2 + theme(axis.title.y=element_blank())
 myp2 <- myp2 + scale_x_log10()
-print(myp2)
-print(myp2)
 
+multiplot(myp1,myp2,cols=2)
 
 
 

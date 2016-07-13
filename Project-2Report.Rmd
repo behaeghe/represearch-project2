@@ -8,9 +8,11 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(message=FALSE)
 ```
 #Synopsis  
-As a local government or municipality it is important to udnerstand the impact weather events could have on our local economy and population. This analysis based on  the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database will identify a set of weather events that have the most impact on local economies and populations. The analysis will be performed in aggregate for the whole United States (the current analysis will not provide details by state or county) and cumulatively for the last 60 years. We will first look at events through the decade to see if climatic change would impact the event reported. We will aggregate the data through the reporting period and identify the the top 5 events in terms of impact to population and US economy.  
+As a local government or municipality it is important to understand the impact weather events could have on our local economy and population. This analysis based on  the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database will identify a set of weather events that have the most impact on local economies and populations. The analysis will be performed in aggregate for the whole United States (the current analysis will not provide details by state or county) and cumulatively for the last 60 years. We will first look at events through the decade to see if climatic change would impact the event reported. We will aggregate the data through the reporting period and identify the the top 5 events in terms of impact to population and US economy.  
 
 #Data Processing  
 ##Acquiring the data  
@@ -40,13 +42,74 @@ white spaces. We are converting to all uper case and trimming any white spaces. 
 ```{r data cleaning, cache=TRUE, include=TRUE}
 ##Cleaning up the EVTYPE, through exploration of the data noticed some inconsitencies so 
 ##addressing those here
-storms$EVTYPE <- toupper(trimws(storms$EVTYPE,which="both"))
+
 ## Inconsistencies of reporting Thunderstorm wind as TSTM WInd and Thunderstorm Wind
-## this line addresses the issue and makes it conistent as "THUNDERSTORM WIND"
-storms$EVTYPE <- gsub("TSTM WIND","THUNDERSTORM WIND",storms$EVTYPE)
-## Transroming srting dates in date objects using lubridate
+## this line addresses the issue and makes it conistent as "THUNDERSTORM WINDS"
 library(lubridate)
-storms$BGN_DATE <- mdy_hms(as.character(storms$BGN_DATE))
+storms <- storms %>% 
+                mutate(
+                        EVTYPE = toupper(trimws(storms$EVTYPE,which="both")),
+                        BGN_DATE = mdy_hms(as.character(storms$BGN_DATE))
+                      ) %>%
+                mutate(
+                        EVTYPE = gsub("^TSTM WIND","THUNDERSTORM WIND",EVTYPE)
+                ) %>%
+                mutate(
+                       EVTYPE = gsub("^THUNDERSTORM WIND","THUNDERSTORM WIND",EVTYPE)
+                       ) %>%
+                mutate(
+                        EVTYPE = gsub("^THUNDERSTORM WINDS","THUNDERSTORM WIND",EVTYPE)
+                ) %>%
+                mutate(
+                        EVTYPE = as.factor(EVTYPE)
+                )
+                 
+
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
 
 ```
 
@@ -119,7 +182,7 @@ storms.health.summary.overall <- storms.health.summary %>%
 
 ```
 ###Data processing of the economic impact of weather events across the United States
-We will first summarize the data (stroms.costs.summary) by the total of cost per year, defining population costs impact as the sum of CROPDMG and PROPDMG, creating the variable COSTIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any costs are excluded from the analysis dataset (storms.costs.summary). We create a derived dataset (storms.costs.summary.by.decade) that summarizes COSTIMPACT (sum of property and crop damages) by decade and weather event type. We then select the top 3 events by decade in a derived dataset named top.costs.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.health.summary.overall.  
+We will first summarize the data (stroms.costs.summary) by the total of cost per year, defining population costs impact as the sum of CROPDMG and PROPDMG, creating the variable COSTIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any costs are excluded from the analysis dataset (storms.costs.summary). We create a derived dataset (storms.costs.summary.by.decade) that summarizes COSTIMPACT (sum of property and crop damages) by decade and weather event type. We then select the top 3 events by decade in a derived dataset named top.costs.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.costs.summary.overall.  
 ```{r costs impact, include=TRUE}
 storms.cost.summary <- storms.impact %>%
                                 group_by(
@@ -175,3 +238,70 @@ top.costs.by.decade <- arrange(
         EVTYPE)
 
 ```
+##Results  
+###Part 1  
+The next plot represents themost harmful events for the US population by decades since the 1950s.
+What the graph shows is that Tornadoes were the only harmful events reported in the 50s, 60s and 70s. Differen types of events
+like THUNDERSTORM WINDS started to be reported in the 80s. However, as the graph shows Tornadoes are still the most prevalent weather event in term of population arms in the later decades. The analysis could have only selected the events after 1980 to reduce the over reporting of tornadoes in the previous decades, but since Tornadoes are such a prevalent harm to populations (actually the most prevalent in this dataset). The data is reported for all decades both for population arm and cost impact.  
+```{r Population harm by weather event and decades (1950-2011), include=TRUE,fig.pos="H"}
+library(ggplot2)
+myp <- ggplot(top.impact.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
+myp <- myp + geom_bar(stat="identity",width=0.5) 
+myp <- myp  
+myp <- myp + labs(title="Most Harmful Weather Event on \n Population Health by Decades \n (Top 3 by Decade)",y="Casualties/Injuries",x="Decade")
+myp <- myp + scale_fill_brewer(palette="Spectral", name="Weather Event")
+myp <- myp + theme_bw() 
+print(myp)
+```
+
+###Part 2  
+The next step of the analysis looks at the impact of weather events both in terms of population harm and economic costs. 
+To that effect we have plotted (using a Cleveland dot plot) the top 10 events by population harms and costs. Tornado and Thunderstom wind have the highest impact on both population heatlh and economic costs. Flash Flood, Hail and Flood also represent a significant costs impact. Excessevive heat, flood and lightning are also very hamrful to population health.  
+```{r Cleveland Plots, include=TRUE,fig.pos="H",fig.width=9}
+## Cleveland Dot Plot
+## 
+cutoff <- 10
+cleveland.costs <- top_n(aggregate(data=storms.cost.summary, COSTIMPACT ~ EVTYPE,sum),cutoff)
+
+myp1 <- ggplot(cleveland.costs,
+               aes(x=COSTIMPACT/1e+6,
+                   y=reorder(EVTYPE,COSTIMPACT)
+                   )
+        )
+
+myp1 <- myp1 + geom_point(size=3,col="grey30")
+myp1 <- myp1 + theme_bw()
+myp1 <- myp1 + theme(panel.grid.major.x = element_blank(),
+                     panel.grid.minor.x = element_blank(),
+                     panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
+                                                     ))
+myp1 <- myp1 + ggtitle("Cost Impact of \n Weather Event") 
+myp1 <- myp1 + xlab("Costs in Million USD")
+myp1 <- myp1 + theme(axis.title.y=element_blank())
+
+
+##
+##
+cleveland.costs <- top_n(aggregate(data=storms.health.summary, POPIMPACT ~ EVTYPE,sum),cutoff)
+myp2 <- ggplot(cleveland.costs,
+               aes(x=POPIMPACT,
+                   y=reorder(EVTYPE,POPIMPACT)
+               )
+)
+myp2 <- myp2 + geom_point(size=3,col="grey30")
+myp2 <- myp2 + theme_bw()
+myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
+                     panel.grid.minor.x = element_blank(),
+                     panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
+                     ))
+myp2 <- myp2 + ggtitle("Population Harm of \n Weather Event") 
+myp2 <- myp2 + xlab("Casualties and Injuries (log)")
+myp2 <- myp2 + theme(axis.title.y=element_blank())
+myp2 <- myp2 + scale_x_log10()
+
+multiplot(myp1,myp2,cols=2)
+```
+
+##Conclusion  
+Local government and municipalities should focus in priority on preparedness for the most severe events identified in this analysis namely: Tornadoes and thuderstorm wind. Also, awarenes should be developed around excessive heat events and flooding that can be harmful to the population across the US.
+Further analysis should focus on local data and recent events to refine local preparedness plans for local government and municipalities,
