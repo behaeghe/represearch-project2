@@ -3,7 +3,7 @@ title: Analysis of Weather Events Impact on the United States Population Health 
   Economy
 author: "JRB"
 date: "July 12, 2016"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -120,13 +120,24 @@ We will first subset the large storms data set to a smaller data set containing:
         *Event type (EVTYPE)
         *Fatalities reported (FATALITIES)
         *Injuries reported (INJURIES)
-        *Property damaage in USD (PROPDMG)
-        *Crop damage in USD (CROPDMG)  
+        *Property damage in USD (PROPDMG)
+        *Property damage magnitude (PROPDMGEXP)
+        *Crop damage in USD (CROPDMG) 
+        *Crop damage magnitude (PROPDMGEXP)
+        
 ```{r data analysis, include=TRUE}
 library(dplyr,quietly=TRUE)
 library(lubridate,quietly = TRUE)
 storms.impact <- storms %>%
-                        select(BGN_DATE,EVTYPE,STATE,FATALITIES,INJURIES,PROPDMG,CROPDMG)
+                        select(BGN_DATE,
+                               EVTYPE,
+                               STATE,
+                               FATALITIES,
+                               INJURIES,
+                               PROPDMG,
+                               PROPDMGEXP,
+                               CROPDMG,
+                               CROPDMGEXP)
 ```
 ###Data Processing of weather events impact on population health
 We will first summarize the data (stroms.health.summary) by the total of fatalities and injuries per year, defining population heatlh impact as the sum of FATALITIES and INJURIES, creating the variable POPIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any injuries or casualties are excluded from the analysis dataset (storms.health.summary). We create a derived dataset (storms.health.summary.by.decade) that summarizes POPIMACT (sum of casualties and injuries) by decade and weather event type. We then select the top 3 event by decade in a derived dataset named top.impact.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.health.summary.overall.  
@@ -184,12 +195,34 @@ storms.health.summary.overall <- storms.health.summary %>%
 ###Data processing of the economic impact of weather events across the United States
 We will first summarize the data (stroms.costs.summary) by the total of cost per year, defining population costs impact as the sum of CROPDMG and PROPDMG, creating the variable COSTIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any costs are excluded from the analysis dataset (storms.costs.summary). We create a derived dataset (storms.costs.summary.by.decade) that summarizes COSTIMPACT (sum of property and crop damages) by decade and weather event type. We then select the top 3 events by decade in a derived dataset named top.costs.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.costs.summary.overall.  
 ```{r costs impact, include=TRUE}
-storms.cost.summary <- storms.impact %>%
+## adjusting the PROPDMGEXP and CROPDMGEXP to numeric values
+storms.cost.summary <- storms.impact
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="K"] <- 3
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="M"] <- 6
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="B"] <- 9
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP==""] <- 0
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="+"] <- 1
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="-"] <- 0
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="H"] <- 2
+storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="?"] <- 0
+storms.cost.summary$PROPDMGEXP <- as.integer(storms.cost.summary$PROPDMGEXP)
+
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="K"] <- 3
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="M"] <- 6
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="B"] <- 9
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP==""] <- 0
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="+"] <- 1
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="-"] <- 0
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="H"] <- 2
+storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="?"] <- 0
+storms.cost.summary$CROPDMGEXP <- as.integer(storms.cost.summary$CROPDMGEXP)
+
+storms.cost.summary <- storms.cost.summary %>%
                                 group_by(
                                         EVTYPE,
                                         YEAR=year(BGN_DATE)) %>%
                                 summarise(
-                                        COSTIMPACT=sum(CROPDMG + PROPDMG)
+                                        COSTIMPACT=sum(CROPDMG*10^CROPDMGEXP + PROPDMG*10^PROPDMGEXP)
                                 )
 ##Breaks data by decade        
 storms.costs.summary <- mutate(
@@ -198,7 +231,7 @@ storms.costs.summary <- mutate(
                    breaks=seq(1949,2020,by=10),
                    labels=c("50s","60s","70s","80s","90s","00s","10s")
         ),
-        COSTIMPACT = PROPDMG+CROPDMG
+        COSTIMPACT = CROPDMG*10^CROPDMGEXP + PROPDMG*10^PROPDMGEXP
 )
 ## Filte# Looking at Population costs Impact
 ##r events that had 0 casualties 

@@ -131,7 +131,7 @@ $(document).ready(function () {
 <h1>Data Processing</h1>
 <div id="acquiring-the-data" class="section level2">
 <h2>Acquiring the data</h2>
-<p>We will first downlad the NOAA database from <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2">Storm Data</a> [47Mb]. The file was downloaded on <code>2016-07-12</code>. We will directly read the csv file from the zipped file in to a R data frame. We use the dplyr package to facilitate further data processing.</p>
+<p>We will first downlad the NOAA database from <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2">Storm Data</a> [47Mb]. The file was downloaded on <code>2016-07-13</code>. We will directly read the csv file from the zipped file in to a R data frame. We use the dplyr package to facilitate further data processing.</p>
 <pre class="r"><code>if (!file.exists(&quot;./data/archive.zip&quot;)) {
     file.url &lt;- &quot;https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2&quot;
     file.destination &lt;- &quot;data&quot;

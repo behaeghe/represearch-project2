@@ -1,6 +1,9 @@
-## Run Analysis
-## 
-## Download file
+## ----setup, include=FALSE------------------------------------------------
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(tidy=TRUE)
+knitr::opts_chunk$set(message=FALSE)
+
+## ----aquiring data, cache=TRUE,include=TRUE------------------------------
 if (!file.exists("./data/archive.zip"))
         {
                 file.url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
@@ -8,46 +11,108 @@ if (!file.exists("./data/archive.zip"))
                 file.name <- "storms.csv"
                 date.downloaded <- Sys.Date()
                 download.file(file.url,"./data/archive.zip","curl",quiet=TRUE)
-                ##unzip("./data/archive.zip",exdir="./data")
         }
 ## read the data into R
 dfstorms <- read.csv("./data/archive.zip",stringsAsFactors = TRUE)
-if(!"storms" %in% ls()){
-dfstorms <- read.csv("./data/archive.zip",stringsAsFactors = TRUE)
+
 ## Making the dataframe as table as they are easier to print and manipulate
-}
 library(dplyr)
 storms <- tbl_df(dfstorms)
-## removing the data fram object form memory (> 400MB)
-#rm("dfstorms")
+str(storms)
 
+## ----data cleaning, cache=TRUE, include=TRUE-----------------------------
+##Cleaning up the EVTYPE, through exploration of the data noticed some inconsitencies so 
+##addressing those here
 
-##Across the United States, which types of events (as indicated in the 𝙴𝚅𝚃𝚈𝙿𝙴 variabl) are most harmful with respect to population health?
-##Across the United States, which types of events have the greatest economic consequences?
-
-## So we need some processing of our data
-## first let's check how clean our data is
-
-## TODO:
-##      Normalize event types: trim and make case the same (upper case)
-##      Turn date strings in date (using lubridate)
-##      Extract what we need for this excersise, evttype, date, fatalities, injuries and research waht fields are related to economic impact
-##      Data Processing
-##      Cleaning up the EVTYPE, through exploration of the data noticed some inconsitencies so 
-##      addressing those here
-storms$EVTYPE <- toupper(trimws(storms$EVTYPE,which="both"))
 ## Inconsistencies of reporting Thunderstorm wind as TSTM WInd and Thunderstorm Wind
-## this line addresses the issue and makes it conistent as "THUNDERSTORM WIND"
-storms$EVTYPE <- gsub("TSTM WIND","THUNDERSTORM WIND",storms$EVTYPE)
-## Transroming srting dates in date objects using lubridate
+## this line addresses the issue and makes it conistent as "THUNDERSTORM WINDS"
 library(lubridate)
-storms$BGN_DATE <- mdy_hms(as.character(storms$BGN_DATE))
-## Making event type a factor
-#storms$EVTYPE <- as.factor(storms$EVTYPE)
-##
-storms.impact <- storms %>%
-                        select(BGN_DATE,EVTYPE,STATE,FATALITIES,INJURIES,PROPDMG,CROPDMG)
+storms <- storms %>% 
+                mutate(
+                        EVTYPE = toupper(trimws(storms$EVTYPE,which="both")),
+                        BGN_DATE = mdy_hms(as.character(storms$BGN_DATE))
+                      ) %>%
+                mutate(
+                        EVTYPE = gsub("^TSTM WIND","THUNDERSTORM WIND",EVTYPE)
+                ) %>%
+                mutate(
+                       EVTYPE = gsub("^THUNDERSTORM WIND","THUNDERSTORM WIND",EVTYPE)
+                       ) %>%
+                mutate(
+                        EVTYPE = gsub("^THUNDERSTORM WINDS","THUNDERSTORM WIND",EVTYPE)
+                ) %>%
+                mutate(
+                        CROPDMGEXP = toupper(CROPDMGEXP),
+                        PROPDMGEXP = toupper(PROPDMGEXP)
+                )%>%
+                mutate(
+                        EVTYPE = as.factor(EVTYPE)
+                )
+                 
 
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+
+## ----data analysis, include=TRUE-----------------------------------------
+library(dplyr,quietly=TRUE)
+library(lubridate,quietly = TRUE)
+storms.impact <- storms %>%
+                        select(BGN_DATE,
+                               EVTYPE,
+                               STATE,
+                               FATALITIES,
+                               INJURIES,
+                               PROPDMG,
+                               PROPDMGEXP,
+                               CROPDMG,
+                               CROPDMGEXP)
+
+## ----population impact, include=TRUE-------------------------------------
+## storms.health.summary aggregate the sum of fatalities and injuries by year and event type
 storms.health.summary <- storms.impact %>%
                                 group_by(
                                         EVTYPE,
@@ -55,14 +120,7 @@ storms.health.summary <- storms.impact %>%
                                 summarise(
                                         POPIMPACT=sum(FATALITIES + INJURIES)
                                         )
-storms.cost.summary <- storms.impact %>%
-                                group_by(
-                                        EVTYPE,
-                                        YEAR=year(BGN_DATE)) %>%
-                                summarise(
-                                        COSTIMPACT=sum(CROPDMG + PROPDMG)
-                                )
-##Breaks data by decade        
+##The summary data is broken down by decade for results discussion       
 storms.health.summary <- mutate(
                                 storms.health.summary,
                                 DECADE=cut(YEAR,
@@ -70,12 +128,11 @@ storms.health.summary <- mutate(
                                            labels=c("50s","60s","70s","80s","90s","00s","10s")
                                            )
                                 )
-## Looking at Population Health Impact
-##r events that had 0 casualties 
+## Only events that had casualties are being considered
 storms.health.summary <- filter(storms.health.summary,
                                 POPIMPACT !=0 
                                 )
-## looked at most impactful events by decade on heatlh
+## Aggregate population health data by decade for future plotting
 storms.health.summary.by.decade <- storms.health.summary %>%
                          group_by(
                                   DECADE,
@@ -83,7 +140,7 @@ storms.health.summary.by.decade <- storms.health.summary %>%
                          summarise(
                                  POPIMPACT2 = sum(POPIMPACT)
                                  )
-## find top 3 impact by decades
+## Define the top 3 impact by decades for plotting
 top.impact.by.decade <- arrange(
         top_n(
                 storms.health.summary.by.decade,3
@@ -91,17 +148,7 @@ top.impact.by.decade <- arrange(
         DECADE,
         desc(POPIMPACT2),
         EVTYPE)
-## Plot it
-library(ggplot2)
-myp <- ggplot(top.impact.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
-myp <- myp + geom_bar(stat="identity",width=0.5) 
-myp <- myp  
-myp <- myp + labs(title="Impact of Weather Event on Population Health by Decades (Top 3 by decade)",y="Casualties/Injuries",x="Decade")
-myp <- myp + scale_fill_brewer(palette="Spectral", name="Weather Event")
-myp <- myp + theme_bw() 
-
-print(myp)
-## Overall since 80s
+## Aggregate Population Heatlh Impact since 1950 and select the 98% percentile and above
 storms.health.summary.overall <- storms.health.summary %>%
                                 filter(
                                         DECADE %in% c("50s","60s","70s","80s","90s","00s","10s")
@@ -114,23 +161,25 @@ storms.health.summary.overall <- storms.health.summary %>%
                                 mutate(RANK=cume_dist(POPIMPACT2)) %>%
                                 filter(RANK > 0.98)
 
-                                
 
-## Plot it
-myp <- ggplot(data=storms.health.summary.overall,
-                aes(
-                        reorder(EVTYPE,-POPIMPACT2),
-                        POPIMPACT2
-                        )
-                )
-myp <- myp + geom_bar(stat="identity",fill="lightblue",width=0.2) + guides(fill=FALSE)
-myp <- myp + ggtitle("Top 5 Weather Event as Population Health Impact")
-myp <- myp + xlab("Weather Event Type") + ylab("Casualties/Injuries")
-
-## fixing titles and legends
-print(myp)
-### Now looking at costs impact##
-### 
+## ----costs impact, include=TRUE------------------------------------------
+storms.cost.summary <- storms.impact %>%
+                                group_by(
+                                        EVTYPE,
+                                        YEAR=year(BGN_DATE)) %>%
+                                summarise(
+                                        COSTIMPACT=sum(CROPDMG + PROPDMG)
+                                )
+storms.cost.summary <- storms.impact %>% 
+                                mutate(
+                                        CROPDMGEXP = gsub("[kK]","1e+3",CROPDMGEXP)
+                                #         )## %>%
+                                # mutate(
+                                #        CROPDMGEXP = gsub("[mM]","1e+6",CROPDMGEXP) 
+                                # ) %>%
+                                # mutate (
+                                #         CROPDMGEXP = gsub("[bB]","1e+9",CROPDMGEXP)
+                                # )
 ##Breaks data by decade        
 storms.costs.summary <- mutate(
         storms.impact,
@@ -165,7 +214,8 @@ storms.costs.summary.overall <- storms.costs.summary %>%
         arrange(
                 desc(COSTIMPACT2)
                 ) %>%
-        top_n(5)
+        mutate(RANK=cume_dist(COSTIMPACT2)) %>%
+        filter(RANK > 0.98)
 storms.costs.summary.overall <- arrange(storms.costs.summary.overall,desc(COSTIMPACT2))
 ## find top 3 impact by decades
 top.costs.by.decade <- arrange(
@@ -176,40 +226,43 @@ top.costs.by.decade <- arrange(
         desc(COSTIMPACT2),
         EVTYPE)
 
-## Plot it
-## Little hack to order the EVTYPE appropriately, ordering the factors
+
+## ----Population harm by weather event and decades (1950-2011), include=TRUE,fig.pos="H"----
 library(ggplot2)
-myp <- ggplot(storms.costs.summary.overall,aes(x=reorder(EVTYPE,-COSTIMPACT2),COSTIMPACT2/1e+6) )
-myp <- myp + geom_bar(stat="identity",fill="lightblue",width=0.2) + guides(fill=FALSE)
-myp <- myp + ggtitle("Top 5 Weather Event as Economic Impact")
-myp <- myp + xlab("Weather Event Type") + ylab("Crop and Property Damages in Million USD")
+myp <- ggplot(top.impact.by.decade,aes(DECADE,POPIMPACT2,fill=EVTYPE)) 
+myp <- myp + geom_bar(stat="identity",width=0.5) 
+myp <- myp  
+myp <- myp + labs(title="Most Harmful Weather Event on \n Population Health by Decades \n (Top 3 by Decade)",y="Casualties/Injuries",x="Decade")
+myp <- myp + scale_fill_brewer(palette="Spectral", name="Weather Event")
+myp <- myp + theme_bw() 
 print(myp)
 
-
+## ----Cleveland Plots, include=TRUE,fig.pos="H",fig.width=9---------------
 ## Cleveland Dot Plot
 ## 
-
-cleveland.costs <- top_n(aggregate(data=storms.cost.summary, COSTIMPACT ~ EVTYPE,sum),10)
+cutoff <- 10
+cleveland.costs <- top_n(aggregate(data=storms.cost.summary, COSTIMPACT ~ EVTYPE,sum),cutoff)
 
 myp1 <- ggplot(cleveland.costs,
                aes(x=COSTIMPACT/1e+6,
                    y=reorder(EVTYPE,COSTIMPACT)
                    )
         )
+
 myp1 <- myp1 + geom_point(size=3,col="grey30")
 myp1 <- myp1 + theme_bw()
 myp1 <- myp1 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.minor.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                                                      ))
-myp1 <- myp1 + ggtitle("Cost Impact of Weather Event (Top 5 by costs)") 
+myp1 <- myp1 + ggtitle("Cost Impact of \n Weather Event") 
 myp1 <- myp1 + xlab("Costs in Million USD")
 myp1 <- myp1 + theme(axis.title.y=element_blank())
 
 
 ##
 ##
-cleveland.costs <- top_n(aggregate(data=storms.health.summary, POPIMPACT ~ EVTYPE,sum),10)
+cleveland.costs <- top_n(aggregate(data=storms.health.summary, POPIMPACT ~ EVTYPE,sum),cutoff)
 myp2 <- ggplot(cleveland.costs,
                aes(x=POPIMPACT,
                    y=reorder(EVTYPE,POPIMPACT)
@@ -221,16 +274,10 @@ myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.minor.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                      ))
-myp2 <- myp2 + ggtitle("Population Health Impact of Weather Event (Top 5 by Impact)") 
+myp2 <- myp2 + ggtitle("Population Harm of \n Weather Event") 
 myp2 <- myp2 + xlab("Casualties and Injuries (log)")
 myp2 <- myp2 + theme(axis.title.y=element_blank())
 myp2 <- myp2 + scale_x_log10()
 
 multiplot(myp1,myp2,cols=2)
-
-
-
-
-
-
 
