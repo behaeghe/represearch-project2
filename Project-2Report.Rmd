@@ -3,7 +3,7 @@ title: Analysis of Weather Events Impact on the United States Population Health 
   Economy
 author: "JRB"
 date: "July 12, 2016"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -297,7 +297,7 @@ cutoff <- 20
 cleveland.costs <- top_n(aggregate(data=storms.costs.summary.overall, COSTIMPACT2 ~ EVTYPE,sum),cutoff)
 
 myp1 <- ggplot(cleveland.costs,
-               aes(x=COSTIMPACT2,
+               aes(x=COSTIMPACT2/1e+9,
                    y=reorder(EVTYPE,COSTIMPACT2)
                    )
         )
@@ -309,7 +309,7 @@ myp1 <- myp1 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                                                      ))
 myp1 <- myp1 + ggtitle("Cost Impact of \n Weather Event") 
-myp1 <- myp1 + xlab("Costs in USD")
+myp1 <- myp1 + xlab("Costs in Billion USD (log)")
 myp1 <- myp1 + theme(axis.title.y=element_blank())
 myp1 <- myp1 + scale_x_log10()
 
@@ -329,7 +329,7 @@ myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                      ))
 myp2 <- myp2 + ggtitle("Population Harm of \n Weather Event") 
-myp2 <- myp2 + xlab("Casualties and Injuries in thousands")
+myp2 <- myp2 + xlab("Casualties and Injuries in thousands (log)")
 myp2 <- myp2 + theme(axis.title.y=element_blank())
 myp2 <- myp2 + scale_x_log10()
 
