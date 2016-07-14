@@ -3,7 +3,7 @@ title: Analysis of Weather Events Impact on the United States Population Health 
   Economy
 author: "JRB"
 date: "July 12, 2016"
-output: pdf_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -46,6 +46,7 @@ white spaces. We are converting to all uper case and trimming any white spaces. 
 ## Inconsistencies of reporting Thunderstorm wind as TSTM WInd and Thunderstorm Wind
 ## this line addresses the issue and makes it conistent as "THUNDERSTORM WINDS"
 library(lubridate)
+storms$EVTYPE[grep("THUNDERSTORM",storms$EVTYPE)] <- "THUNDERSTORM WIND"
 storms <- storms %>% 
                 mutate(
                         EVTYPE = toupper(trimws(storms$EVTYPE,which="both")),
@@ -59,6 +60,9 @@ storms <- storms %>%
                        ) %>%
                 mutate(
                         EVTYPE = gsub("^THUNDERSTORM WINDS","THUNDERSTORM WIND",EVTYPE)
+                ) %>%
+                mutate(
+                        EVTYPE = gsub("^THUNDERSTORM WIND [G][0-9][0-9]","THUNDERSTORM WIND",EVTYPE)
                 ) %>%
                 mutate(
                         EVTYPE = as.factor(EVTYPE)
@@ -193,31 +197,32 @@ storms.health.summary.overall <- storms.health.summary %>%
 
 ```
 ###Data processing of the economic impact of weather events across the United States
-We will first summarize the data (stroms.costs.summary) by the total of cost per year, defining population costs impact as the sum of CROPDMG and PROPDMG, creating the variable COSTIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any costs are excluded from the analysis dataset (storms.costs.summary). We create a derived dataset (storms.costs.summary.by.decade) that summarizes COSTIMPACT (sum of property and crop damages) by decade and weather event type. We then select the top 3 events by decade in a derived dataset named top.costs.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.costs.summary.overall.  
+We will first summarize the data (stroms.costs.summary) by the total of cost per year, defining population costs impact as the sum of CROPDMG and PROPDMG, creating the variable COSTIMPACT. We then introduce a DECADE variable to cut the data by DECADE for further discussion. Observations with out any costs are excluded from the analysis dataset (storms.impact). We create a derived dataset (storms.costs.summary.by.decade) that summarizes COSTIMPACT (sum of property and crop damages) by decade and weather event type. We then select the top 3 events by decade in a derived dataset named top.costs.by.decade. Finally we summarize the population impact across all decade and select the event strictly greater that the 98% percentile into a final dataset called storms.costs.summary.overall.  
 ```{r costs impact, include=TRUE}
 ## adjusting the PROPDMGEXP and CROPDMGEXP to numeric values
-storms.cost.summary <- storms.impact
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="K"] <- 3
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="M"] <- 6
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="B"] <- 9
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP==""] <- 0
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="+"] <- 1
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="-"] <- 0
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="H"] <- 2
-storms.cost.summary$PROPDMGEXP[storms.cost.summary$PROPDMGEXP=="?"] <- 0
-storms.cost.summary$PROPDMGEXP <- as.integer(storms.cost.summary$PROPDMGEXP)
+storms.impact$PROPDMGEXP <- as.character(storms.impact$PROPDMGEXP)
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP=="K"] <- 3
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP=="M"] <- 6
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP=="B"] <- 9
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP==""] <- 0
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP=="+"] <- 1
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP=="-"] <- 0
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP=="H"] <- 2
+storms.impact$PROPDMGEXP[storms.impact$PROPDMGEXP=="?"] <- 0
+storms.impact$PROPDMGEXP <- as.integer(storms.impact$PROPDMGEXP)
 
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="K"] <- 3
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="M"] <- 6
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="B"] <- 9
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP==""] <- 0
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="+"] <- 1
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="-"] <- 0
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="H"] <- 2
-storms.cost.summary$CROPDMGEXP[storms.cost.summary$CROPDMGEXP=="?"] <- 0
-storms.cost.summary$CROPDMGEXP <- as.integer(storms.cost.summary$CROPDMGEXP)
+storms.impact$CROPDMGEXP <- as.character(storms.impact$CROPDMGEXP)
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP=="K"] <- 3
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP=="M"] <- 6
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP=="B"] <- 9
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP==""] <- 0
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP=="+"] <- 1
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP=="-"] <- 0
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP=="H"] <- 2
+storms.impact$CROPDMGEXP[storms.impact$CROPDMGEXP=="?"] <- 0
+storms.impact$CROPDMGEXP <- as.integer(storms.impact$CROPDMGEXP)
 
-storms.cost.summary <- storms.cost.summary %>%
+storms.impact.summary <- storms.impact %>%
                                 group_by(
                                         EVTYPE,
                                         YEAR=year(BGN_DATE)) %>%
@@ -225,50 +230,45 @@ storms.cost.summary <- storms.cost.summary %>%
                                         COSTIMPACT=sum(CROPDMG*10^CROPDMGEXP + PROPDMG*10^PROPDMGEXP)
                                 )
 ##Breaks data by decade        
-storms.costs.summary <- mutate(
-        storms.impact,
-        DECADE=cut(year(BGN_DATE),
-                   breaks=seq(1949,2020,by=10),
-                   labels=c("50s","60s","70s","80s","90s","00s","10s")
-        ),
-        COSTIMPACT = CROPDMG*10^CROPDMGEXP + PROPDMG*10^PROPDMGEXP
-)
+# storms.costs.summary <- mutate(
+#         storms.impact,
+#         DECADE=cut(year(BGN_DATE),
+#                    breaks=seq(1949,2020,by=10),
+#                    labels=c("50s","60s","70s","80s","90s","00s","10s")
+#         ),
+#         COSTIMPACT = CROPDMG*10^CROPDMGEXP + PROPDMG*10^PROPDMGEXP
+# )
 ## Filte# Looking at Population costs Impact
 ##r events that had 0 casualties 
-storms.costs.summary <- filter(storms.costs.summary,
+storms.costs.summary <- filter(storms.impact.summary,
                                 COSTIMPACT !=0 
                         )
 ## looked at most impactful events by decade on heatlh
-storms.costs.summary.by.decade <- storms.costs.summary %>%
-        group_by(
-                DECADE,
-                EVTYPE) %>%
-        summarise(
-                COSTIMPACT2 = sum(COSTIMPACT)
-        )
+# storms.costs.summary.by.decade <- storms.costs.summary %>%
+#         group_by(
+#                 DECADE,
+#                 EVTYPE) %>%
+#         summarise(
+#                 COSTIMPACT2 = sum(COSTIMPACT)
+#         )
 ## Overall since 80s
 storms.costs.summary.overall <- storms.costs.summary %>%
-        filter(
-                DECADE %in% c("70s","80s","90s","00s","10s")
-        ) %>%
         group_by(EVTYPE) %>%
         summarise(
                 COSTIMPACT2 = sum(COSTIMPACT)
         ) %>%
         arrange(
                 desc(COSTIMPACT2)
-                ) %>%
-        mutate(RANK=cume_dist(COSTIMPACT2)) %>%
-        filter(RANK > 0.98)
+                )
 storms.costs.summary.overall <- arrange(storms.costs.summary.overall,desc(COSTIMPACT2))
 ## find top 3 impact by decades
-top.costs.by.decade <- arrange(
-        top_n(
-                storms.costs.summary.by.decade,3
-        ),
-        DECADE,
-        desc(COSTIMPACT2),
-        EVTYPE)
+# top.costs.by.decade <- arrange(
+#         top_n(
+#                 storms.costs.summary.by.decade,3
+#         ),
+#         DECADE,
+#         desc(COSTIMPACT2),
+#         EVTYPE)
 
 ```
 ##Results  
@@ -293,12 +293,12 @@ To that effect we have plotted (using a Cleveland dot plot) the top 10 events by
 ```{r Cleveland Plots, include=TRUE,fig.pos="H",fig.width=9}
 ## Cleveland Dot Plot
 ## 
-cutoff <- 10
-cleveland.costs <- top_n(aggregate(data=storms.cost.summary, COSTIMPACT ~ EVTYPE,sum),cutoff)
+cutoff <- 20
+cleveland.costs <- top_n(aggregate(data=storms.costs.summary.overall, COSTIMPACT2 ~ EVTYPE,sum),cutoff)
 
 myp1 <- ggplot(cleveland.costs,
-               aes(x=COSTIMPACT/1e+6,
-                   y=reorder(EVTYPE,COSTIMPACT)
+               aes(x=COSTIMPACT2,
+                   y=reorder(EVTYPE,COSTIMPACT2)
                    )
         )
 
@@ -309,15 +309,16 @@ myp1 <- myp1 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                                                      ))
 myp1 <- myp1 + ggtitle("Cost Impact of \n Weather Event") 
-myp1 <- myp1 + xlab("Costs in Million USD")
+myp1 <- myp1 + xlab("Costs in USD")
 myp1 <- myp1 + theme(axis.title.y=element_blank())
+myp1 <- myp1 + scale_x_log10()
 
 
 ##
 ##
 cleveland.costs <- top_n(aggregate(data=storms.health.summary, POPIMPACT ~ EVTYPE,sum),cutoff)
 myp2 <- ggplot(cleveland.costs,
-               aes(x=POPIMPACT,
+               aes(x=POPIMPACT/1e+3,
                    y=reorder(EVTYPE,POPIMPACT)
                )
 )
@@ -328,7 +329,7 @@ myp2 <- myp2 + theme(panel.grid.major.x = element_blank(),
                      panel.grid.major.y=element_line(colour="grey60",linetype="dashed"
                      ))
 myp2 <- myp2 + ggtitle("Population Harm of \n Weather Event") 
-myp2 <- myp2 + xlab("Casualties and Injuries (log)")
+myp2 <- myp2 + xlab("Casualties and Injuries in thousands")
 myp2 <- myp2 + theme(axis.title.y=element_blank())
 myp2 <- myp2 + scale_x_log10()
 
